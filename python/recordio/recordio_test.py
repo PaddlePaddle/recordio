@@ -2,6 +2,7 @@ import unittest
 
 import recordio
 import cPickle as pickle
+import md5
 
 class TestStringMethods(unittest.TestCase):
     def test_write_read(self):
@@ -25,6 +26,37 @@ class TestStringMethods(unittest.TestCase):
         self.assertEqual(r.read(), "")
         self.assertEqual(r.read(), None)
         self.assertEqual(r.read(), None)
+        r.close()
+
+    def test_binary_image(self):
+        #write
+        w = recordio.writer("/tmp/image_binary")
+        with open("./images/10045_right_512.png", "rb") as f:
+            con = f.read()
+
+        d1 = {'img': con,
+             'md5': md5.new(con).hexdigest()
+        }
+
+        #pickle
+        p1 = pickle.dumps(d1, pickle.HIGHEST_PROTOCOL)
+        print "in python:", md5.new(p1).hexdigest(), len(p1) 
+
+        w.write(p1)
+        w.close()
+
+        #read
+        r = recordio.reader("/tmp/image_binary")
+        while True:
+            p2 = r.read() 
+            if not p2:
+                break
+            print "in python:", len(p2)
+
+            d2 = pickle.loads(p2)
+            print d2['md5']
+            self.assertEqual(d2["md5"], d1["md5"])
+
         r.close()
 
 
