@@ -31,7 +31,7 @@ class TestStringMethods(unittest.TestCase):
     def test_binary_image(self):
         #write
         w = recordio.writer("/tmp/image_binary")
-        with open("./images/10045_right_512.png", "rb") as f:
+        with open("./images/10045_right_512", "rb") as f:
             con = f.read()
 
         d1 = {'img': con,
