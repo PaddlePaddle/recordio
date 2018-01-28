@@ -42,7 +42,9 @@ class Chunk {
 public:
   void Add(const char* record, size_t length);
   void Add(const std::string&);
+
   bool Dump(std::ostream& os, CompressType ct);
+  void Parse();
   const std::string Record(int i) { return records_[i];}
 private:
   std::vector<const std::string> records_;

@@ -60,6 +60,9 @@ bool Chunk::Dump(std::ostream& os, CompressType ct) {
   char* buffer = new char[kDefaultMaxChunkSize];
   size_t compressed = CompressData(oss.str(), ct, buffer);
 
+
+  // TODO(dzhwinter): crc32 checksum
+
   Header hdr();
   delete[] buffer;
   return true;
