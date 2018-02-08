@@ -12,47 +12,72 @@
 namespace recordio {
 
 constexpr size_t kDefaultMaxChunkSize = 32 * 1024 * 1024;
+constexpr uint32_t kMagicNumber = 0x01020304;
 
-enum class CompressType {
+enum class Compressor {
   kNoCompress = 0,
     kSnappy = 1,
     kGzip = 2,
 };
 
+// template<bool less, size_t I, typename... ARGS>
+// struct LittleEndian;
+
+// template<false, size_t I, typename... ARGS>
+// struct LittleEndian {
+// };
+
+
 class Header {
 public:
-  Header(size_t n, size_t sum, CompressType c, size_t cs):
-    num_records_(n), checksum_(sum), compress_type_(c), compress_size_(cs) {}
+  Header() = default;
+  Header(uint32_t num, uint32_t sum, Compressor ct, uint32_t cs):
+    num_records_(num), checksum_(sum), compressor_(ct), compress_size_(cs) {}
   // compatible with Go
   void Write(std::ostream& os);
 
   // native interface in c++
   friend std::ostream& operator << (std::ostream& os, const Header& h);
-  void Parse(const Header& h);
+
+  void Parse(std::istream& iss);
+
+  uint32_t NumRecords() const {return num_records_;}
+  uint32_t Checksum() const { return checksum_;}
+  Compressor CompressType() const { return compressor_;}
+  uint32_t CompressSize() const { return compress_size_;}
+  bool operator==(const Header& rhs) const {
+    return num_records_ == rhs.NumRecords() &&
+      checksum_ == rhs.Checksum() &&
+      compressor_ == rhs.CompressType() &&
+      compress_size_ == rhs.CompressSize();
+  }
 private:
-  size_t num_records_;
-  size_t checksum_;
-  CompressType compress_type_;
-  size_t compress_size_;
+  uint32_t num_records_;
+  uint32_t checksum_;
+  Compressor compressor_;
+  uint32_t compress_size_;
 };
 
 // Chunk
 // a chunk contains the Header and optionally compressed records.
 class Chunk {
 public:
+  Chunk() = default;
   void Add(const char* record, size_t length);
   void Add(const std::string&);
 
-  bool Dump(std::ostream& os, CompressType ct);
-  void Parse();
+  bool Dump(std::ostream& os, Compressor ct);
+  void Parse(std::istream& iss, int64_t offset);
   const std::string Record(int i) { return records_[i];}
+
 private:
-  std::vector<const std::string> records_;
+  std::vector<std::string> records_;
   size_t num_bytes_;
 };
 
-size_t CompressData(const std::stringstream& ss, CompressType ct);
+size_t CompressData(const std::stringstream& ss, Compressor ct, char* buffer);
 
+uint32_t DeflateData(char* buffer, uint32_t size, Compressor c);
 
 // Scanner
 
@@ -67,7 +92,7 @@ public:
     size_t sum = 0;
     for(size_t i=0; i < chunk_lens_.size(); ++i) {
       sum += chunk_lens_[i];
-      if (record_idx < sum) {
+      if (static_cast<size_t>(record_idx) < sum) {
         out->first = i;
         out->second = record_idx - sum + chunk_lens_[i];
         return ;
@@ -79,7 +104,7 @@ public:
   }
 private:
   std::vector<int64_t> chunk_offsets_;
-  std::vector<unsigned> chunk_lens_;
+  std::vector<uint32_t> chunk_lens_;
   int num_records_;
   std::vector<int> chunk_records_;
 };
@@ -132,7 +157,6 @@ public:
   size_t Write(const char* buf, size_t length);
   size_t Write(const std::string& buf);
 
-  // recommend interface
   template<typename T>
   Writer& operator << (const T& val) {
     stream_ << val;
@@ -142,9 +166,10 @@ public:
   void Close();
 private:
   std::ostream stream_;
-  Chunk* chunk_;
+  std::shared_ptr<Chunk> chunk_;
   int max_chunk_size_;
   int compressor_;
+
 private:
   Writer(const Writer&) = delete;
   Writer& operator=(const Writer&) = delete;
