@@ -1,7 +1,7 @@
 import unittest
 
-import recordio
-import cPickle as pickle
+from . import recordio
+import six.moves.cPickle as pickle
 import md5
 
 class TestStringMethods(unittest.TestCase):
@@ -40,7 +40,7 @@ class TestStringMethods(unittest.TestCase):
 
         #pickle
         p1 = pickle.dumps(d1, pickle.HIGHEST_PROTOCOL)
-        print "in python before write:", md5.new(p1).hexdigest(), len(p1) 
+        print("in python before write:", md5.new(p1).hexdigest(), len(p1))
 
         w.write(p1)
         w.close()
@@ -48,10 +48,10 @@ class TestStringMethods(unittest.TestCase):
         #read
         r = recordio.reader("/tmp/image_binary")
         while True:
-            p2 = r.read() 
+            p2 = r.read()
             if not p2:
                 break
-            print "in python after  read:", md5.new(p2).hexdigest(), len(p2)
+            print("in python after  read:", md5.new(p2).hexdigest(), len(p2))
 
             d2 = pickle.loads(p2)
             self.assertEqual(md5.new(d2['img']).hexdigest(), d2['md5'])
